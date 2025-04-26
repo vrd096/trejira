@@ -7,6 +7,7 @@ import { DeadlineNotifier } from './utils/deadlineNotifications';
 import { loginSuccess, logout } from './features/auth/authSlice'; // Удалили fetchUserProfile
 // import { useNavigate } from 'react-router-dom'; // useNavigate не используется в этой логике
 import { jwtDecode } from 'jwt-decode'; // Для проверки срока токена
+import { fetchTasks } from './features/tasks/tasksThunks';
 
 // Интерфейс для данных пользователя из localStorage
 interface StoredUser {
@@ -29,13 +30,15 @@ const App: React.FC = () => {
   const notifierRef = useRef<DeadlineNotifier | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [isInitialAuthCheckDone, setIsInitialAuthCheckDone] = useState(false); // Флаг для предотвращения мигания
-
+  useEffect(() => {
+    if (user) dispatch(fetchTasks());
+  }, [user]);
   // Инициализация приложения и проверка аутентификации
   useEffect(() => {
     console.log('App.tsx: Initial auth check effect running.');
     const googleToken = localStorage.getItem('googleToken');
     const storedUserJson = localStorage.getItem('user');
-    let userIsAuthenticated = false;
+    let userIsAuthenticatedOnLoad = false;
 
     if (googleToken && storedUserJson) {
       console.log('Found Google token and user data in localStorage.');
@@ -55,7 +58,10 @@ const App: React.FC = () => {
           console.log('Google token is valid. Dispatching loginSuccess.');
           // Восстанавливаем сессию в Redux
           dispatch(loginSuccess(storedUser));
-          userIsAuthenticated = true; // Пользователь аутентифицирован
+          userIsAuthenticatedOnLoad = true; // Пользователь аутентифицирован
+
+          console.log('User authenticated on load, fetching tasks...');
+          dispatch(fetchTasks()); // <<< ВЫЗЫВАЕМ ЗАГРУЗКУ ЗАДАЧ
         }
       } catch (error) {
         console.error('Error decoding token or parsing user data:', error);
@@ -72,8 +78,10 @@ const App: React.FC = () => {
 
     setIsInitialAuthCheckDone(true); // Помечаем, что проверка завершена
 
-    // Инициализация уведомлений (можно вынести, если мешает)
-    notifierRef.current = new DeadlineNotifier(dispatch, tasks);
+    // Инициализация DeadlineNotifier (можно оставить здесь или перенести)
+    // Важно: Notifier может получить пустой список tasks при первом запуске,
+    // он должен корректно обновиться при изменении tasks.
+    notifierRef.current = new DeadlineNotifier(dispatch, tasks); // tasks здесь будут начальные (пустые)
     return () => {
       notifierRef.current?.clearAll();
     };
@@ -90,12 +98,12 @@ const App: React.FC = () => {
 
   // Обработчик выхода (вызывается из CalendarIntegration)
   // Мы его не вызываем напрямую из App.tsx, но логика остается здесь для справки
-  const handleLogout = () => {
-    localStorage.removeItem('googleToken');
-    localStorage.removeItem('user');
-    dispatch(logout());
-    console.log('App.tsx: handleLogout called.');
-  };
+  // const handleLogout = () => {
+  //   localStorage.removeItem('googleToken');
+  //   localStorage.removeItem('user');
+  //   dispatch(logout());
+  //   console.log('App.tsx: handleLogout called.');
+  // };
 
   // Не показываем основной контент, пока не завершится проверка аутентификации
   if (!isInitialAuthCheckDone) {
