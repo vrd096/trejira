@@ -113,15 +113,9 @@ const App: React.FC = () => {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Real-Time Task Board</h1>
+        <h1>Real-Time Задачи</h1>
         {isAuthenticated && user ? (
           <div className="user-panel">
-            <img src={user.avatar} alt={user.name} className="user-avatar" />
-            <div className="user-info">
-              <span className="user-name">{user.name}</span>
-              {/* Кнопка выхода теперь в CalendarIntegration */}
-            </div>
-            {/* Кнопка создания задачи только для авторизованных */}
             <button onClick={() => setShowTaskForm(true)} className="create-task-btn ml-4">
               Create Task
             </button>

@@ -19,7 +19,6 @@ interface DecodedGoogleToken {
 const CalendarIntegration: React.FC = () => {
   const dispatch = useAppDispatch();
   const { user, isAuthenticated, loading, error } = useAppSelector((state) => state.auth);
-
   // --- Handler for successful Google Sign-In ---
   const handleGoogleLoginSuccess = (credentialResponse: CredentialResponse) => {
     dispatch(setAuthLoading(true));
@@ -32,12 +31,13 @@ const CalendarIntegration: React.FC = () => {
       return;
     }
 
-    console.log('Google credential received:', credentialResponse.credential);
+    // console.log('Google credential received:', credentialResponse.credential);
+    // console.log('Google credential received:', credentialResponse);
 
     try {
       // 1. Декодируем Google ID токен на клиенте
       const decodedToken = jwtDecode<DecodedGoogleToken>(credentialResponse.credential);
-      console.log('Decoded Google token:', decodedToken);
+      // console.log('Decoded Google token:', decodedToken);
 
       if (!decodedToken.sub || !decodedToken.email || !decodedToken.name) {
         throw new Error('Invalid Google token payload');
@@ -95,31 +95,23 @@ const CalendarIntegration: React.FC = () => {
 
   return (
     <div className="calendar-integration bg-gray-50 p-6 rounded-lg shadow-sm border border-gray-200">
-      <h3 className="text-lg font-semibold mb-4">Authentication</h3>
+      <h3 className="text-lg font-semibold mb-4">Пользователь</h3>
 
       {isAuthenticated && user ? (
         <div className="integration-status bg-white p-4 rounded-lg shadow border border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-8 h-8 rounded-full object-cover border border-gray-300"
-              />
               <span className="font-medium text-gray-800">{user.name}</span>
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1 text-sm bg-red-100 text-red-600 rounded-md hover:bg-red-200 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50">
-              Sign Out
+            <br />
+            <button onClick={handleLogout} className="create-task-btn ml-4">
+              Выйти
             </button>
           </div>
         </div>
       ) : (
         <div className="integration-setup bg-white p-4 rounded-lg shadow border border-gray-200">
-          <p className="text-gray-600 mb-3 text-sm">
-            Sign in with your Google Account to continue.
-          </p>
+          <p className="text-gray-600 mb-3 text-sm">Пожалуйста, войдите в свой аккаунт Google.</p>
           <div className="flex flex-col items-start space-y-3">
             <GoogleLogin
               onSuccess={handleGoogleLoginSuccess}
