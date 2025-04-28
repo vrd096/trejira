@@ -119,7 +119,7 @@ const App: React.FC = () => {
         {isAuthenticated && user ? (
           <div className="user-panel">
             <button onClick={() => setShowTaskForm(true)} className="create-task-btn ml-4">
-              Create Task
+              Создать задачу
             </button>
           </div>
         ) : (
@@ -136,7 +136,7 @@ const App: React.FC = () => {
 
           {isAuthenticated && ( // Показываем только авторизованным
             <div className="mt-6 p-4 bg-white rounded shadow border border-gray-200">
-              <h4 className="font-semibold mb-3 text-gray-700">Task View</h4>
+              <h4 className="font-semibold mb-3 text-gray-700">Просмотр задач</h4>
               <div className="flex flex-col space-y-2">
                 <button
                   onClick={() => dispatch(setViewMode('active'))}
@@ -145,7 +145,7 @@ const App: React.FC = () => {
                       ? 'bg-blue-100 text-blue-700 font-medium'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}>
-                  Active Tasks
+                  Активные задачи
                 </button>
                 <button
                   onClick={() => dispatch(setViewMode('hidden'))}
@@ -154,7 +154,7 @@ const App: React.FC = () => {
                       ? 'bg-blue-100 text-blue-700 font-medium'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}>
-                  Hidden Tasks
+                  Скрытые задачи
                 </button>
               </div>
             </div>
@@ -166,7 +166,7 @@ const App: React.FC = () => {
             <TaskBoard />
           ) : (
             <p className="text-center mt-10 text-gray-500">
-              Please sign in to view and manage tasks.
+              Пожалуйста, войдите в систему, чтобы просматривать задачи и управлять ими.
             </p>
           )}
         </div>

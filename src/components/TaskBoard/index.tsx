@@ -38,13 +38,13 @@ const TaskBoard: React.FC = () => {
         <div className="task-column w-full">
           {' '}
           {/* Одна колонка для скрытых */}
-          <h2 className="task-column__title">HIDDEN TASKS</h2>
+          <h2 className="task-column__title">Скрытые задачи</h2>
           <div className="task-column__items">
             {filteredTasks.map((task: ITask) => (
               <TaskItem key={task.id} task={task} />
             ))}
             {filteredTasks.length === 0 && (
-              <p className="text-gray-500 text-sm p-4">No hidden tasks.</p>
+              <p className="text-gray-500 text-sm p-4">Нет скрытых задач.</p>
             )}
           </div>
         </div>

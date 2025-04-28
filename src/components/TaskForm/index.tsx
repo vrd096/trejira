@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { createTask } from '../../features/tasks/tasksThunks';
 import { ITask } from '../../types/taskTypes';
-import { v4 as uuidv4 } from 'uuid';
 
 interface TaskFormProps {
   onClose: () => void;
@@ -27,7 +26,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose }) => {
     e.preventDefault();
 
     if (!user) return;
-
+    onClose();
     const taskData = {
       ...formData,
       deadline: new Date(formData.deadline).toISOString(),
@@ -35,6 +34,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose }) => {
         id: user.id,
         name: formData.assignee.name,
         email: formData.assignee.email,
+        isHidden: false,
       },
     };
 
@@ -79,20 +79,20 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose }) => {
 
   return (
     <form onSubmit={handleSubmit} className="task-form">
-      <h2>Create New Task</h2>
+      <h2>Создать новую задачу</h2>
 
       <div className="form-group">
-        <label>Title</label>
+        <label>Заголовок</label>
         <input type="text" name="title" value={formData.title} onChange={handleChange} required />
       </div>
 
       <div className="form-group">
-        <label>Description</label>
+        <label>Описание</label>
         <textarea name="description" value={formData.description} onChange={handleChange} />
       </div>
 
       <div className="form-group">
-        <label>Status</label>
+        <label>Статус</label>
         <select name="status" value={formData.status} onChange={handleChange}>
           <option value="todo">To Do</option>
           <option value="in-progress">In Progress</option>
@@ -101,7 +101,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose }) => {
       </div>
 
       <div className="form-group">
-        <label>Deadline</label>
+        <label>Крайний срок</label>
         <input
           type="datetime-local"
           name="deadline"
@@ -111,7 +111,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose }) => {
       </div>
 
       <div className="form-group">
-        <label>Assignee Name</label>
+        <label>Создал</label>
         <input
           type="text"
           name="assigneeName"
@@ -122,7 +122,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose }) => {
       </div>
 
       <div className="form-group">
-        <label>Assignee Email</label>
+        <label>Email создателя</label>
         <input
           type="email"
           name="assigneeEmail"
@@ -134,9 +134,9 @@ const TaskForm: React.FC<TaskFormProps> = ({ onClose }) => {
 
       <div className="form-actions">
         <button type="button" onClick={onClose}>
-          Cancel
+          Отменить
         </button>
-        <button type="submit">Create Task</button>
+        <button type="submit">Создать задачу</button>
       </div>
     </form>
   );
