@@ -1,4 +1,3 @@
-// components/CalendarIntegration/index.tsx
 import React from 'react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import { loginSuccess, logout, setAuthLoading, setAuthError } from '../../features/auth/authSlice';

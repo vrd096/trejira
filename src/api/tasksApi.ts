@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ITask } from '../types/taskTypes'; // Keep this if used by tasksApi methods
+import { ITask, ICreateTaskPayload } from '../types/taskTypes'; // Keep this if used by tasksApi methods
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -65,7 +65,7 @@ export const tasksApi = {
 
   // Обрати внимание: Omit<ITask, '_id'> может быть неверным, если на клиенте ID - это Google 'sub'
   // Возможно, сервер ожидает другие поля для создания задачи. Адаптируй под свой TaskSchema.
-  async create(taskData: Omit<ITask, 'id' | 'createdAt' | 'updatedAt'>): Promise<ITask> {
+  async create(taskData: ICreateTaskPayload): Promise<ITask> {
     // ID пользователя (MongoDB ID) будет добавлен сервером из проверенного токена
     const response = await apiClient.post('/api/tasks', taskData);
     return response.data;

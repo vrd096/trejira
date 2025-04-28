@@ -1,3 +1,18 @@
+export interface ICreateTaskPayload {
+  title: string;
+  description: string;
+  status: TaskStatus;
+  deadline: string; // ISO string
+  assignee: {
+    // Достаточно email или ID, имя можно взять на сервере
+    // id?: string; // Можно убрать, искать по email
+    name: string; // Имя пока оставим, форма его собирает
+    email: string; // Email для поиска пользователя на сервере
+  };
+  // isHidden не передаем, по умолчанию false
+  // calendarEventId не передаем, создается сервером
+}
+
 export interface IAssignee {
   id: string;
   name: string;

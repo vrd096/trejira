@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAppSelector, useAppDispatch } from './app/hooks';
 import TaskBoard from './components/TaskBoard';
 import TaskForm from './components/TaskForm';
-import CalendarIntegration from './components/CalendarIntegration';
+import AuthPanel from './components/AuthPanel';
 import { DeadlineNotifier } from './utils/deadlineNotifications';
 import { loginSuccess, logout } from './features/auth/authSlice'; // Удалили fetchUserProfile
 // import { useNavigate } from 'react-router-dom'; // useNavigate не используется в этой логике
@@ -98,7 +98,7 @@ const App: React.FC = () => {
     }
   }, [tasks]); // Зависит только от tasks
 
-  // Обработчик выхода (вызывается из CalendarIntegration)
+  // Обработчик выхода (вызывается из AuthPanel )
   // Мы его не вызываем напрямую из App.tsx, но логика остается здесь для справки
   // const handleLogout = () => {
   //   localStorage.removeItem('googleToken');
@@ -123,16 +123,14 @@ const App: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div style={{ marginLeft: 'auto' }}>
-            {/* Пусто, т.к. кнопка входа в CalendarIntegration */}
-          </div>
+          <div style={{ marginLeft: 'auto' }}>{/* Пусто, т.к. кнопка входа в AuthPanel  */}</div>
         )}
       </header>
 
       <main className="app-main">
         <div className="app-sidebar">
-          {/* CalendarIntegration показывает либо инфо пользователя, либо кнопку входа */}
-          <CalendarIntegration />
+          {/* AuthPanel  показывает либо инфо пользователя, либо кнопку входа */}
+          <AuthPanel />
 
           {isAuthenticated && ( // Показываем только авторизованным
             <div className="mt-6 p-4 bg-white rounded shadow border border-gray-200">
