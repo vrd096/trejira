@@ -1,66 +1,86 @@
-// features/auth/authSlice.ts
+// src/features/auth/authSlice.ts
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-// Удалили createAsyncThunk и apiClient, если fetchUserProfile больше не нужен
 
 interface User {
-  id: string; // Google User ID (sub)
+  id: string; // Google ID (sub) - получаем от сервера
+  _id?: string; // MongoDB ID (если сервер возвращает)
   name: string;
   email: string;
-  avatar: string;
+  // avatar?: string; // Аватар опционален
 }
 
 interface AuthState {
   user: User | null;
-  isAuthenticated: boolean;
-  loading: boolean;
+  accessToken: string | null; // <<< Храним Access Token здесь
+  isAuthenticated: boolean; // Рассчитывается на основе accessToken и user
+  loading: 'idle' | 'pending' | 'failed'; // Используем строки для статуса загрузки
   error: string | null;
+  isRefreshing: boolean; // Флаг для предотвращения гонки рефреша
 }
 
 const initialState: AuthState = {
   user: null,
+  accessToken: null,
   isAuthenticated: false,
-  loading: false,
+  loading: 'idle',
   error: null,
+  isRefreshing: false, // Начальное состояние флага рефреша
 };
-
-// Удалили thunk fetchUserProfile, так как проверка токена идет на сервере при каждом запросе
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    // Вызывается после успешной обработки Google токена на клиенте
-    loginSuccess: (state, action: PayloadAction<User>) => {
-      state.user = action.payload;
+    // Успешный вход или рефреш
+    authSuccess: (state, action: PayloadAction<{ accessToken: string; user?: User }>) => {
+      state.accessToken = action.payload.accessToken;
+      // Обновляем пользователя, если он пришел (обычно при логине)
+      if (action.payload.user) {
+        state.user = action.payload.user;
+        // Сохраняем пользователя в localStorage для быстрого восстановления UI
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
+      }
       state.isAuthenticated = true;
-      state.loading = false;
+      state.loading = 'idle';
       state.error = null;
+      state.isRefreshing = false;
+      console.log('AuthSlice: authSuccess - isAuthenticated: true');
     },
-    // Вызывается при выходе или ошибке аутентификации
+    // Выход из системы
     logout: (state) => {
       state.user = null;
+      state.accessToken = null;
       state.isAuthenticated = false;
-      state.loading = false;
-      state.error = null; // Сбрасываем ошибку при выходе
-      // Очистка localStorage происходит в компоненте, вызывающем logout,
-      // но можно продублировать здесь для надежности.
-      localStorage.removeItem('googleToken');
+      state.loading = 'idle';
+      state.error = null;
+      state.isRefreshing = false;
+      // Очищаем localStorage
       localStorage.removeItem('user');
-      // Также нужно убедиться, что заголовок Authorization удаляется из apiClient
-      // Интерсептор запроса должен это делать, если токена нет.
-      console.log('AuthSlice: logout action dispatched, state reset.');
+      // localStorage.removeItem('accessToken'); // Access не храним в LS
+      // Refresh Token удаляется сервером из cookie
+      console.log('AuthSlice: logout - isAuthenticated: false');
     },
-    setAuthLoading: (state, action: PayloadAction<boolean>) => {
-      state.loading = action.payload;
+    // Установка состояния загрузки
+    setAuthLoading: (state, payload: PayloadAction<'pending' | 'idle' | 'failed'>) => {
+      state.loading = payload.payload;
+      if (payload.payload !== 'pending') {
+        state.isRefreshing = false; // Сбрасываем флаг рефреша при завершении
+      }
     },
+    // Установка ошибки
     setAuthError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
-      state.loading = false; // Обычно ошибка означает конец загрузки
+      state.loading = 'failed'; // Ошибка обычно означает конец загрузки
+      state.isRefreshing = false;
+    },
+    // Установка флага рефреша
+    setRefreshing: (state, action: PayloadAction<boolean>) => {
+      state.isRefreshing = action.payload;
     },
   },
-  // Удалили extraReducers для fetchUserProfile
+  // Можно добавить extraReducers для обработки pending/rejected состояний thunks
 });
 
-export const { loginSuccess, logout, setAuthLoading, setAuthError } = authSlice.actions;
-
+export const { authSuccess, logout, setAuthLoading, setAuthError, setRefreshing } =
+  authSlice.actions;
 export default authSlice.reducer;

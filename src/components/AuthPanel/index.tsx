@@ -1,129 +1,97 @@
+// src/components/AuthPanel/index.tsx (или как ты его назвал)
 import React from 'react';
 import { useAppDispatch, useAppSelector } from '../../app/hooks';
-import { loginSuccess, logout, setAuthLoading, setAuthError } from '../../features/auth/authSlice';
 import { GoogleLogin, CredentialResponse } from '@react-oauth/google';
-import { jwtDecode } from 'jwt-decode'; // Для декодирования токена на клиенте
-// Удалили импорт apiClient, так как он не нужен здесь для отправки запроса аутентификации
+// Импортируем новые thunks
+import { loginWithGoogleToken, logoutUser } from '../../features/auth/authThunks';
+// Импортируем RootState
+import { RootState } from '../../app/store';
+// Убираем setAuthLoading, setAuthError - они вызываются внутри thunks
 
-// Интерфейс для декодированного Google токена
-interface DecodedGoogleToken {
-  sub: string; // Google User ID
-  name: string;
-  email: string;
-  picture: string; // URL аватара
-  exp: number; // Expiration time
-  // другие поля...
-}
-
-const CalendarIntegration: React.FC = () => {
+const AuthPanel: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { user, isAuthenticated, loading, error } = useAppSelector((state) => state.auth);
-  // --- Handler for successful Google Sign-In ---
-  const handleGoogleLoginSuccess = (credentialResponse: CredentialResponse) => {
-    dispatch(setAuthLoading(true));
-    dispatch(setAuthError(null));
+  // Получаем user и isAuthenticated для отображения UI
+  const { user, isAuthenticated, loading, error } = useAppSelector(
+    (state: RootState) => state.auth,
+  );
 
+  // --- Обработчик УСПЕШНОГО входа через Google ---
+  const handleGoogleLoginSuccess = async (credentialResponse: CredentialResponse) => {
     if (!credentialResponse.credential) {
       console.error('Google login failed: No credential received.');
-      dispatch(setAuthError('Google login failed: No credential received.'));
-      dispatch(setAuthLoading(false));
+      // Можно показать ошибку через dispatch(setAuthError(...)) или alert
+      alert('Google Sign-In failed: No credential received.');
       return;
     }
-
-    // console.log('Google credential received:', credentialResponse.credential);
-    // console.log('Google credential received:', credentialResponse);
-
-    try {
-      // 1. Декодируем Google ID токен на клиенте
-      const decodedToken = jwtDecode<DecodedGoogleToken>(credentialResponse.credential);
-      // console.log('Decoded Google token:', decodedToken);
-
-      if (!decodedToken.sub || !decodedToken.email || !decodedToken.name) {
-        throw new Error('Invalid Google token payload');
-      }
-
-      // 2. Формируем данные пользователя для Redux/localStorage
-      const userData = {
-        id: decodedToken.sub, // Используем Google ID (sub) как ID пользователя на клиенте
-        name: decodedToken.name,
-        email: decodedToken.email,
-        avatar: decodedToken.picture,
-      };
-
-      // 3. Сохраняем сам Google ID токен в localStorage для отправки с запросами
-      localStorage.setItem('googleToken', credentialResponse.credential);
-      // Сохраняем данные пользователя для отображения UI
-      localStorage.setItem('user', JSON.stringify(userData));
-
-      // 4. Диспатчим успешный вход в Redux
-      dispatch(loginSuccess(userData));
-
-      // 5. Установка заголовка Authorization теперь будет делаться интерсептором в tasksApi.ts
-
-      console.log('User logged in successfully on client-side.');
-    } catch (err: any) {
-      console.error('Client-side Google token processing failed:', err);
-      const errorMessage = err.message || 'Failed to process Google token.';
-      dispatch(setAuthError(errorMessage));
-      // Очистка в случае ошибки
-      localStorage.removeItem('googleToken');
-      localStorage.removeItem('user');
-      dispatch(logout()); // Сбросить состояние Redux
-    } finally {
-      dispatch(setAuthLoading(false));
-    }
+    console.log('Google credential received, dispatching loginWithGoogleToken...');
+    // Диспатчим thunk для обмена токена
+    dispatch(loginWithGoogleToken(credentialResponse.credential));
+    // Состояние loading/error будет управляться внутри thunk'а и authSlice
   };
 
-  // --- Handler for Google Sign-In errors ---
+  // --- Обработчик НЕУДАЧНОГО входа через Google ---
   const handleGoogleLoginError = () => {
     console.error('Google Sign-In failed on the client side.');
-    dispatch(setAuthError('Google Sign-In failed. Please try again.'));
+    alert('Google Sign-In failed. Please try again.');
+    // Можно диспатчить setAuthError, если нужно
   };
 
-  // --- Handler for user sign-out ---
+  // --- Обработчик ВЫХОДА из системы ---
   const handleLogout = () => {
-    // Очищаем Google токен и данные пользователя
-    localStorage.removeItem('googleToken');
-    localStorage.removeItem('user');
-    // Диспатчим logout (который должен сбросить Redux state)
-    dispatch(logout());
-    // Можно добавить Google Sign Out, если нужно завершить сессию и на стороне Google
-    // google?.accounts?.id?.disableAutoSelect();
-    console.log('User logged out.');
+    console.log('Logout button clicked, dispatching logoutUser...');
+    dispatch(logoutUser()); // Вызываем thunk для выхода
   };
-
+  console.log(
+    'AuthPanel rendering. isAuthenticated:',
+    isAuthenticated,
+    'User:',
+    user,
+    'Loading:',
+    loading,
+  );
   return (
-    <div className="calendar-integration bg-gray-50 p-6 rounded-lg shadow-sm border border-gray-200">
-      <h3 className="text-lg font-semibold mb-4">Пользователь</h3>
-
+    <div className="auth-panel bg-gray-50 p-4 md:p-6 rounded-lg shadow-sm border border-gray-200">
+      {' '}
+      {/* Изменил имя класса */}
+      <h3 className="text-lg font-semibold mb-4 text-gray-800">Авторизация</h3>
+      {/* --- Отображение информации о пользователе или кнопки входа --- */}
       {isAuthenticated && user ? (
-        <div className="integration-status bg-white p-4 rounded-lg shadow border border-gray-200">
+        <div className="status-display bg-white p-4 rounded-md shadow-sm border border-gray-200">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
+              {/* Можно вернуть аватар, если сервер его возвращает */}
+              {/* user.avatar && <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full object-cover border border-gray-300"/> */}
               <span className="font-medium text-gray-800">{user.name}</span>
             </div>
-            <br />
-            <button onClick={handleLogout} className="create-task-btn ml-4">
-              Выйти
+            <button
+              onClick={handleLogout}
+              disabled={loading === 'pending'} // Блокируем кнопку при загрузке/выходе
+              className="px-3 py-1 text-sm bg-red-100 text-red-600 rounded-md hover:bg-red-200 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-opacity-50 disabled:opacity-50">
+              Sign Out
             </button>
           </div>
         </div>
       ) : (
-        <div className="integration-setup bg-white p-4 rounded-lg shadow border border-gray-200">
-          <p className="text-gray-600 mb-3 text-sm">Пожалуйста, войдите в свой аккаунт Google.</p>
+        <div className="login-section bg-white p-4 rounded-md shadow-sm border border-gray-200">
+          <p className="text-gray-600 mb-3 text-sm">
+            Чтобы продолжить, войдите в свой аккаунт Google.
+          </p>
           <div className="flex flex-col items-start space-y-3">
-            <GoogleLogin
-              onSuccess={handleGoogleLoginSuccess}
-              onError={handleGoogleLoginError}
-              size="medium"
-              theme="outline"
-              shape="rectangular"
-            />
-            {loading && (
+            {/* Показываем кнопку входа, только если не идет процесс загрузки/логина */}
+            {loading !== 'pending' && (
+              <GoogleLogin
+                onSuccess={handleGoogleLoginSuccess}
+                onError={handleGoogleLoginError}
+                size="medium"
+                theme="outline"
+              />
+            )}
+            {/* Индикатор загрузки */}
+            {loading === 'pending' && (
               <div className="flex items-center text-blue-600 text-sm">
                 <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
                   {' '}
-                  {/* SVG Spinner */}
+                  {/* Spinner */}
                   <circle
                     className="opacity-25"
                     cx="12"
@@ -142,7 +110,10 @@ const CalendarIntegration: React.FC = () => {
                 <span>Processing...</span>
               </div>
             )}
-            {error && <p className="text-red-600 text-sm mt-1">Error: {error}</p>}
+            {/* Сообщение об ошибке */}
+            {error && loading !== 'pending' && (
+              <p className="text-red-600 text-sm mt-1">Error: {error}</p>
+            )}
           </div>
         </div>
       )}
@@ -150,4 +121,4 @@ const CalendarIntegration: React.FC = () => {
   );
 };
 
-export default CalendarIntegration;
+export default AuthPanel;

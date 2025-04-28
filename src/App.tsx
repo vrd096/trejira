@@ -2,31 +2,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAppSelector, useAppDispatch } from './app/hooks';
 import TaskBoard from './components/TaskBoard';
 import TaskForm from './components/TaskForm';
-import AuthPanel from './components/AuthPanel';
+import AuthPanel from './components/AuthPanel'; // <<< Используем новое имя
 import { DeadlineNotifier } from './utils/deadlineNotifications';
-import { loginSuccess, logout } from './features/auth/authSlice'; // Удалили fetchUserProfile
-// import { useNavigate } from 'react-router-dom'; // useNavigate не используется в этой логике
-import { jwtDecode } from 'jwt-decode'; // Для проверки срока токена
+// Убираем loginSuccess, logout отсюда, используем thunks
 import { fetchTasks } from './features/tasks/tasksThunks';
+import { refreshAccessToken } from './features/auth/authThunks'; // <<< Импорт рефреша
+import { RootState } from './app/store'; // Импорт RootState
 import { setViewMode } from './features/tasks/tasksSlice';
-import { RootState } from './app/store';
-
-// Интерфейс для данных пользователя из localStorage
-interface StoredUser {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-}
-
-// Интерфейс для декодированного Google токена (только для проверки exp)
-interface DecodedGoogleTokenExp {
-  exp: number;
-}
 
 const App: React.FC = () => {
   const { tasks, viewMode } = useAppSelector((state: RootState) => state.tasks);
-  const { user, isAuthenticated } = useAppSelector((state) => state.auth);
+  const { isAuthenticated, user, loading: authLoading } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   // const navigate = useNavigate(); // Не используется
   const notifierRef = useRef<DeadlineNotifier | null>(null);
@@ -37,76 +23,64 @@ const App: React.FC = () => {
   }, [user]);
   // Инициализация приложения и проверка аутентификации
   useEffect(() => {
-    console.log('App.tsx: Initial auth check effect running.');
-    const googleToken = localStorage.getItem('googleToken');
-    const storedUserJson = localStorage.getItem('user');
-    let userIsAuthenticatedOnLoad = false;
+    console.log('App.tsx: Attempting initial token refresh...');
+    dispatch(refreshAccessToken())
+      .unwrap() // unwrap нужен, чтобы catch сработал при rejectWithValue
+      .then(() => {
+        console.log('App.tsx: Initial refresh successful.');
+        // Загрузка задач теперь произойдет в другом useEffect
+      })
+      .catch((error) => {
+        // Ошибки (истекший refresh token, невалидный и т.д.) уже обработаны в thunk'е (вызван logout)
+        console.log('App.tsx: Initial refresh failed or no token.', error);
+      })
+      .finally(() => {
+        // Помечаем, что попытка входа/рефреша завершена
+        setIsInitialAuthCheckDone(true);
+        console.log('App.tsx: Initial auth attempt finished.');
+      });
 
-    if (googleToken && storedUserJson) {
-      console.log('Found Google token and user data in localStorage.');
-      try {
-        // Проверяем срок действия Google токена
-        const decodedToken = jwtDecode<DecodedGoogleTokenExp>(googleToken);
-        const isExpired = decodedToken.exp * 1000 < Date.now();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dispatch]);
 
-        if (isExpired) {
-          console.log('Google token is expired. Clearing storage.');
-          localStorage.removeItem('googleToken');
-          localStorage.removeItem('user');
-          dispatch(logout()); // Убедимся, что стейт Redux тоже сброшен
-        } else {
-          // Токен валиден (не истек), парсим данные пользователя
-          const storedUser: StoredUser = JSON.parse(storedUserJson);
-          console.log('Google token is valid. Dispatching loginSuccess.');
-          // Восстанавливаем сессию в Redux
-          dispatch(loginSuccess(storedUser));
-          userIsAuthenticatedOnLoad = true; // Пользователь аутентифицирован
-
-          console.log('User authenticated on load, fetching tasks...');
-          dispatch(fetchTasks()); // <<< ВЫЗЫВАЕМ ЗАГРУЗКУ ЗАДАЧ
-        }
-      } catch (error) {
-        console.error('Error decoding token or parsing user data:', error);
-        // Ошибка декодирования или парсинга - считаем невалидным
-        localStorage.removeItem('googleToken');
-        localStorage.removeItem('user');
-        dispatch(logout());
-      }
-    } else {
-      console.log('No Google token or user data found. Ensuring logged out state.');
-      // Если чего-то нет, убедимся, что пользователь разлогинен
-      dispatch(logout());
+  useEffect(() => {
+    // Загружаем задачи только ПОСЛЕ попытки рефреша И если пользователь вошел
+    if (isInitialAuthCheckDone && isAuthenticated) {
+      console.log('App.tsx: User is authenticated, fetching tasks...');
+      dispatch(fetchTasks());
+    } else if (isInitialAuthCheckDone && !isAuthenticated) {
+      console.log('App.tsx: User is not authenticated, skipping task fetch.');
+      // Можно очистить стейт задач, если нужно
+      // dispatch(setTasks([]));
     }
-
-    setIsInitialAuthCheckDone(true); // Помечаем, что проверка завершена
-
-    // Инициализация DeadlineNotifier (можно оставить здесь или перенести)
-    // Важно: Notifier может получить пустой список tasks при первом запуске,
-    // он должен корректно обновиться при изменении tasks.
-    notifierRef.current = new DeadlineNotifier(dispatch, tasks); // tasks здесь будут начальные (пустые)
-    return () => {
-      notifierRef.current?.clearAll();
-    };
-    // Зависимости: dispatch. Не добавляем tasks, чтобы не перезапускать проверку при их изменении.
-  }, [dispatch]); // Запускаем только один раз при монтировании
+  }, [isAuthenticated, isInitialAuthCheckDone, dispatch]);
 
   // Обновление уведомлений (остается без изменений)
   useEffect(() => {
-    // Обновляем задачи в уведомителе только если он уже создан
     if (notifierRef.current) {
       notifierRef.current.updateTasks(tasks);
+    } else if (isAuthenticated) {
+      // Создаем только если вошел
+      notifierRef.current = new DeadlineNotifier(dispatch, tasks);
     }
-  }, [tasks]); // Зависит только от tasks
-
-  // Обработчик выхода (вызывается из AuthPanel )
-  // Мы его не вызываем напрямую из App.tsx, но логика остается здесь для справки
-  // const handleLogout = () => {
-  //   localStorage.removeItem('googleToken');
-  //   localStorage.removeItem('user');
-  //   dispatch(logout());
-  //   console.log('App.tsx: handleLogout called.');
-  // };
-
+    // Очистка при размонтировании или выходе пользователя
+    return () => {
+      if (!isAuthenticated && notifierRef.current) {
+        notifierRef.current.clearAll();
+        notifierRef.current = null;
+      }
+    };
+  }, [tasks, isAuthenticated, dispatch]); // Зависит от tasks и isAuthenticated
+  console.log(
+    'App rendering final UI. isInitialAuthAttemptDone:',
+    isInitialAuthCheckDone,
+    'isAuthenticated:',
+    isAuthenticated,
+    'user:',
+    user ? `User(id=${user.id}, name=${user.name})` : user, // Логируем user кратко или null
+    'authLoading:',
+    authLoading,
+  );
   // Не показываем основной контент, пока не завершится проверка аутентификации
   if (!isInitialAuthCheckDone) {
     return <div className="loading">Initializing...</div>; // Или спиннер на весь экран

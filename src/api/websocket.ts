@@ -1,85 +1,77 @@
 import { io, Socket } from 'socket.io-client';
-import { ITask } from '../types/taskTypes'; // Импортируем ITask
+import { ITask } from '../types/taskTypes';
 
-const socketUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000'; // Лучше ws://
+const socketUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:3000';
 
 export class TaskWebSocket {
   private socket!: Socket;
+  private currentToken: string | null; // Храним текущий токен
 
-  // Конструктор принимает колбэки и сохраняет их в свойствах класса
   constructor(
+    // --- Добавляем accessToken как ПЕРВЫЙ аргумент ---
+    accessToken: string | null, // Принимаем Access Token
+    // ---------------------------------------------
     private onTaskUpdated: (task: ITask) => void,
     private onTaskDeleted: (taskId: string) => void,
     private onError?: (error: Error) => void,
   ) {
     console.log('TaskWebSocket: Constructor called.');
+    // Сохраняем токен, чтобы использовать его при реконнекте
+    this.currentToken = accessToken;
     this.setupEventListeners();
   }
 
   private setupEventListeners(): void {
     if (this.socket) {
-      console.log('WebSocket: Disconnecting existing socket before reconnecting.');
+      console.log('WebSocket: Disconnecting existing socket.');
       this.socket.disconnect();
     }
 
-    const token = localStorage.getItem('googleToken'); // Используем googleToken
-    console.log('WebSocket: Attempting to connect with token:', token ? 'present' : 'absent');
+    // Используем токен, сохраненный в this.currentToken
+    const token = this.currentToken;
+    console.log(
+      'WebSocket: Attempting to connect with Access Token:',
+      token ? 'Present' : 'Absent',
+    );
+
+    if (!token) {
+      console.warn('WebSocket: Cannot connect without an access token.');
+      // Не создаем сокет, если нет токена
+      return;
+    }
 
     this.socket = io(socketUrl, {
       path: '/socket.io',
       transports: ['websocket'],
       reconnectionAttempts: 5,
       timeout: 10000,
-      auth: { token: token },
+      auth: {
+        token: token, // <<< Используем переданный Access Token
+      },
     });
 
-    // --- Обработчики стандартных событий Socket.IO ---
+    // --- Обработчики событий (остаются прежними) ---
     this.socket.on('connect', () => {
-      console.log(`WebSocket: Connected successfully with socket ID: ${this.socket.id}`);
+      /* ... */
     });
-
     this.socket.on('disconnect', (reason) => {
-      console.log(`WebSocket: Disconnected. Reason: ${reason}`);
-      if (reason === 'io server disconnect') {
-        console.warn('WebSocket: Disconnected by server.');
-        // Используем сохраненный onError
-        this.onError?.(new Error('Disconnected by server')); // <<< ИСПОЛЬЗОВАНИЕ this.onError
-      }
+      this.onError?.(new Error(`Disconnected: ${reason}`));
     });
-
     this.socket.on('connect_error', (err) => {
-      console.error(`WebSocket: Connection Error: ${err.message}`);
-      // Используем сохраненный onError
-      this.onError?.(err); // <<< ИСПОЛЬЗОВАНИЕ this.onError
-      if (err.message.includes('Authentication error') || err.message.includes('Invalid token')) {
-        console.error('WebSocket: Authentication failed.');
-      }
+      this.onError?.(err);
     });
-
-    // --- Обработчики пользовательских событий от сервера ---
-    // Используем сохраненные колбэки
-
     this.socket.on('TASK_UPDATED', (task: ITask) => {
-      console.log('WebSocket: Received TASK_UPDATED event:', task);
-      // Вызываем колбэк, сохраненный в свойстве класса
-      this.onTaskUpdated(task); // <<< ИСПОЛЬЗОВАНИЕ this.onTaskUpdated
+      this.onTaskUpdated(task);
     });
-
     this.socket.on('TASK_DELETED', (taskId: string) => {
-      console.log('WebSocket: Received TASK_DELETED event for task ID:', taskId);
-      // Вызываем колбэк, сохраненный в свойстве класса
-      this.onTaskDeleted(taskId); // <<< ИСПОЛЬЗОВАНИЕ this.onTaskDeleted
+      this.onTaskDeleted(taskId);
     });
-
-    // Обработчик общих ошибок
     this.socket.on('error', (error: any) => {
-      console.error('WebSocket: Received general error event:', error);
-      // Используем сохраненный onError
-      this.onError?.(new Error(error?.message || 'Unknown WebSocket error')); // <<< ИСПОЛЬЗОВАНИЕ this.onError
+      this.onError?.(new Error(error?.message || 'WS Error'));
     });
+    // ---------------------------------------------
   }
 
-  // --- Остальные методы ---
   public close(): void {
     if (this.socket) {
       console.log('WebSocket: Closing connection manually.');
@@ -87,8 +79,16 @@ export class TaskWebSocket {
     }
   }
 
-  public reconnectWithToken(): void {
-    console.log('WebSocket: Reconnecting with updated token...');
+  // Метод для обновления токена и переподключения
+  public updateTokenAndReconnect(newAccessToken: string | null): void {
+    console.log('WebSocket: Updating token and reconnecting...');
+    this.currentToken = newAccessToken;
+    // setupEventListeners закроет старый сокет и откроет новый с this.currentToken
     this.setupEventListeners();
   }
+
+  // public reconnectWithToken(): void {
+  //   console.log('WebSocket: Reconnecting with updated token...');
+  //   this.setupEventListeners();
+  // }
 }
