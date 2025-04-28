@@ -8,6 +8,8 @@ import { loginSuccess, logout } from './features/auth/authSlice'; // Удали�
 // import { useNavigate } from 'react-router-dom'; // useNavigate не используется в этой логике
 import { jwtDecode } from 'jwt-decode'; // Для проверки срока токена
 import { fetchTasks } from './features/tasks/tasksThunks';
+import { setViewMode } from './features/tasks/tasksSlice';
+import { RootState } from './app/store';
 
 // Интерфейс для данных пользователя из localStorage
 interface StoredUser {
@@ -23,7 +25,7 @@ interface DecodedGoogleTokenExp {
 }
 
 const App: React.FC = () => {
-  const tasks = useAppSelector((state) => state.tasks.tasks);
+  const { tasks, viewMode } = useAppSelector((state: RootState) => state.tasks);
   const { user, isAuthenticated } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   // const navigate = useNavigate(); // Не используется
@@ -131,6 +133,32 @@ const App: React.FC = () => {
         <div className="app-sidebar">
           {/* CalendarIntegration показывает либо инфо пользователя, либо кнопку входа */}
           <CalendarIntegration />
+
+          {isAuthenticated && ( // Показываем только авторизованным
+            <div className="mt-6 p-4 bg-white rounded shadow border border-gray-200">
+              <h4 className="font-semibold mb-3 text-gray-700">Task View</h4>
+              <div className="flex flex-col space-y-2">
+                <button
+                  onClick={() => dispatch(setViewMode('active'))}
+                  className={`text-left px-3 py-1 rounded ${
+                    viewMode === 'active'
+                      ? 'bg-blue-100 text-blue-700 font-medium'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}>
+                  Active Tasks
+                </button>
+                <button
+                  onClick={() => dispatch(setViewMode('hidden'))}
+                  className={`text-left px-3 py-1 rounded ${
+                    viewMode === 'hidden'
+                      ? 'bg-blue-100 text-blue-700 font-medium'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}>
+                  Hidden Tasks
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="app-content">

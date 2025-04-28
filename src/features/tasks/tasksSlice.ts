@@ -5,6 +5,7 @@ const initialState: TaskBoardState = {
   tasks: [],
   loading: false,
   error: null,
+  viewMode: 'active',
 };
 
 const tasksSlice = createSlice({
@@ -15,7 +16,7 @@ const tasksSlice = createSlice({
     taskUpdated: (state, action: PayloadAction<ITask>) => {
       const index = state.tasks.findIndex((t) => t.id === action.payload.id);
       if (index >= 0) {
-        state.tasks[index] = action.payload;
+        state.tasks[index] = { ...state.tasks[index], ...action.payload };
       } else {
         state.tasks.push(action.payload);
       }
@@ -42,6 +43,16 @@ const tasksSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload;
     },
+    setViewMode: (state, action: PayloadAction<'active' | 'hidden'>) => {
+      state.viewMode = action.payload;
+    },
+    // Редьюсер для оптимистичного обновления статуса isHidden
+    setTaskHiddenStatus: (state, action: PayloadAction<{ taskId: string; isHidden: boolean }>) => {
+      const task = state.tasks.find((t) => t.id === action.payload.taskId);
+      if (task) {
+        task.isHidden = action.payload.isHidden;
+      }
+    },
   },
 });
 
@@ -53,6 +64,8 @@ export const {
   setTasks,
   setLoading,
   setError,
+  setViewMode,
+  setTaskHiddenStatus,
 } = tasksSlice.actions;
 
 export default tasksSlice.reducer;

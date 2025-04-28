@@ -16,6 +16,7 @@ export interface ITask {
   createdAt: string;
   updatedAt: string;
   calendarEventId?: string;
+  isHidden?: boolean;
 }
 
 export interface CalendarEvent {
@@ -36,6 +37,7 @@ export interface TaskBoardState {
   tasks: ITask[];
   loading: boolean;
   error: string | null;
+  viewMode: 'active' | 'hidden';
 }
 
 export interface Notification {
